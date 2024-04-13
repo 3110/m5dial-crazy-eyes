@@ -38,7 +38,7 @@ M5Dialにファームウェアを書き込むときは，StampS3の真ん中に�
 Crazy Eyes v0.0.1
 Config:
  AutoMode: false
- Interval: 1000ms
+ Interval: 100ms
 Mode:
  Manual or Auto
 Orientation:
