@@ -4,21 +4,23 @@
 #include "M5DialEncoder.hpp"
 // clang-format on
 
-const char* CrazyEyes::VERSION = "v0.0.1";
+const char* CrazyEyes::VERSION = "v0.0.2";
 
-const char* CrazyEyes::OPEN_EYE_IMAGE_FILE = "/crazy-eyes-open.jpg";
-const char* CrazyEyes::CLOSE_EYE_IMAGE_FILE = "/crazy-eyes-close.jpg";
+extern const uint8_t OPEN_EYE_START[] asm(
+    "_binary_data_crazy_eyes_open_jpg_start");
+extern const uint8_t OPEN_EYE_END[] asm("_binary_data_crazy_eyes_open_jpg_end");
+static const size_t OPEN_EYE_SIZE = (OPEN_EYE_END - OPEN_EYE_START);
+
+extern const uint8_t CLOSE_EYE_START[] asm(
+    "_binary_data_crazy_eyes_close_jpg_start");
+extern const uint8_t CLOSE_EYE_END[] asm(
+    "_binary_data_crazy_eyes_close_jpg_end");
+static const size_t CLOSE_EYE_SIZE = (CLOSE_EYE_END - CLOSE_EYE_START);
 
 static const int32_t TEXT_AREA_X = 35;
 static const int32_t TEXT_AREA_Y = 35;
 static const int32_t TEXT_AREA_WIDTH = 170;
 static const int32_t TEXT_AREA_HEIGHT = 170;
-
-static const bool FORMAT_FS_IF_FAILED = true;
-static const char* EXT_JPG = ".jpg";
-static const char* EXT_JPEG = ".jpeg";
-static const char* EXT_BMP = ".bmp";
-static const char* EXT_PNG = ".png";
 
 static M5DialEncoder encoder;
 static int16_t prev_dial_pos = 0;
@@ -50,8 +52,7 @@ inline int16_t getDirection(void) {
 }
 
 CrazyEyes::CrazyEyes(void)
-    : _imageFiles{OPEN_EYE_IMAGE_FILE, CLOSE_EYE_IMAGE_FILE},
-      _pos(0),
+    : _isOpenEye(true),
       _prevUpdate(0),
       _isAutoMode(false),
       _interval(AUTO_INTERVAL_MS) {
@@ -73,12 +74,6 @@ bool CrazyEyes::begin(int bgColor) {
     M5.Lcd.setCursor(TEXT_AREA_X, TEXT_AREA_Y);
     M5.Lcd.setScrollRect(TEXT_AREA_X, TEXT_AREA_Y, TEXT_AREA_WIDTH,
                          TEXT_AREA_HEIGHT);
-
-    if (!IV_FS.begin(FORMAT_FS_IF_FAILED)) {
-        M5.Lcd.println("Failed to mount File System");
-        return false;
-    }
-    M5.Lcd.setFileStorage(IV_FS);
 
     M5.Lcd.printf("Crazy Eyes %s", VERSION);
     M5.Lcd.println();
@@ -119,7 +114,7 @@ bool CrazyEyes::begin(int bgColor) {
 #endif
 
     if (!this->_isAutoMode) {
-        showImage(this->_imageFiles, this->_pos);
+        showEye();
     }
 
     return true;
@@ -133,7 +128,7 @@ bool CrazyEyes::update(void) {
         this->_isAutoMode = !this->_isAutoMode;
 #else
         M5.Lcd.setRotation(toggleOrientation(M5.Lcd.getRotation()));
-        showImage(this->_imageFiles, this->_pos);
+        showEye();
 #endif
     }
 
@@ -145,14 +140,8 @@ bool CrazyEyes::update(void) {
     }
     if (direction != 0) {
         this->_prevUpdate = t;
-        if (direction < 0 && this->_pos == 0) {
-            this->_pos = MAX_IMAGE_FILES - 1;
-        } else if (direction > 0 && this->_pos == MAX_IMAGE_FILES - 1) {
-            this->_pos = 0;
-        } else {
-            this->_pos += direction;
-        }
-        showImage(this->_imageFiles, this->_pos);
+        this->_isOpenEye = !this->_isOpenEye;
+        showEye();
     }
     return direction != 0;
 }
@@ -162,56 +151,15 @@ uint8_t CrazyEyes::toggleOrientation(uint8_t orientation) const {
                                                 : RIGHT_EYE_ORIENTATION;
 }
 
-void CrazyEyes::showImage(const String images[], size_t p) {
-    const char* filename = images[p].c_str();
+void CrazyEyes::showEye(void) {
     M5.Lcd.startWrite();
-    if (isJpeg(filename)) {
-        M5.Lcd.drawJpgFile(filename, 0, 0, M5.Display.width(),
-                           M5.Display.height(), 0, 0, 0.0F, 0.0F,
-                           middle_center);
-    } else if (isPng(filename)) {
-        M5.Lcd.drawPngFile(filename, 0, 0, M5.Display.width(),
-                           M5.Display.height(), 0, 0, 0.0F, 0.0F,
-                           middle_center);
-    } else if (isBmp(filename)) {
-        M5.Lcd.drawBmpFile(filename, 0, 0, M5.Display.width(),
-                           M5.Display.height(), 0, 0, 0.0F, 0.0F,
-                           middle_center);
+    if (this->_isOpenEye) {
+        M5.Lcd.drawJpg(OPEN_EYE_START, OPEN_EYE_SIZE, 0, 0, M5.Display.width(),
+                       M5.Display.height(), 0, 0, 0.0F, 0.0F, middle_center);
     } else {
-        M5.Lcd.printf("ignore: %s", filename);
-        M5.Lcd.println();
+        M5.Lcd.drawJpg(CLOSE_EYE_START, CLOSE_EYE_SIZE, 0, 0,
+                       M5.Display.width(), M5.Display.height(), 0, 0, 0.0F,
+                       0.0F, middle_center);
     }
     M5.Lcd.endWrite();
-}
-
-bool CrazyEyes::hasExt(const char* filename, const char* ext) const {
-    if (filename == nullptr) {
-        return false;
-    }
-    if (ext == nullptr) {
-        return false;
-    }
-    const char* p = strrchr(filename, '.');
-    return p != nullptr && strcasecmp(ext, p) == 0;
-}
-
-bool CrazyEyes::isJpeg(const char* filename) const {
-    if (filename == nullptr) {
-        return false;
-    }
-    return hasExt(filename, EXT_JPG) || hasExt(filename, EXT_JPEG);
-}
-
-bool CrazyEyes::isPng(const char* filename) const {
-    if (filename == nullptr) {
-        return false;
-    }
-    return hasExt(filename, EXT_PNG);
-}
-
-bool CrazyEyes::isBmp(const char* filename) const {
-    if (filename == nullptr) {
-        return false;
-    }
-    return hasExt(filename, EXT_BMP);
 }
