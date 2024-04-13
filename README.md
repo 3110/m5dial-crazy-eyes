@@ -1,5 +1,7 @@
 # M5Dialクレイジーアイズ
 
+<img src="images/crazy-eyes.jpg" width="640" height="320" alt="クレイジーアイズ写真">
+
 紐をあごにひっかけてしゃべるとまばたきをするメガネ型のおもちゃ（株式会社アガツマのクレイジーアイズ）をM5Stack社のM5Dialをぜいたくに2個も使ってデジタルにしてみました。
 
 詳細は「[M5Dialクレイジーアイズ](https://protopedia.net/prototype/4810)」（ProtoPedia）をご覧ください。
