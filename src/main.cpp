@@ -1,8 +1,8 @@
 // clang-format off
-#include "ImageViewer.hpp"
+#include "CrazyEyes.hpp"
 // clang-format on
 
-ImageViewer viewer;
+CrazyEyes eyes;
 
 void forever(void) {
     while (true) {
@@ -11,12 +11,12 @@ void forever(void) {
 }
 
 void setup(void) {
-    if (!viewer.begin()) {
+    if (!eyes.begin()) {
         forever();
     }
 }
 
 void loop(void) {
-    viewer.update();
+    eyes.update();
     delay(100);
 }
